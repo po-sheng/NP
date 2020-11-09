@@ -79,7 +79,6 @@ int main(void)  {
     // Set initial env variable
     setenv("PATH", "bin:.", 1);
     double next_prompt = 0;
-    pid_t pipePid = 0;
 
     while(1) {
         cout << "% ";                                           // print prompt
@@ -137,9 +136,6 @@ int main(void)  {
         int w_num_pipe = -1;                                                        // to inform the index of number pipe to write
         int proc_count = 0, max_proc = 500;                                         // maximum process number will be set to 510
         vector<pid_t> pid_list;
-        if(pipePid != 0)   {
-            pid_list.push_back(pipePid);
-        }
 
 //--------------------------------------------------------------------------------------------------------  
 // Implement each command
@@ -168,6 +164,12 @@ int main(void)  {
                         close(numPipe_list[idx]->fd[1]);
                         r_num_pipe = idx;
                         from_numPipe = true;
+                
+                        // Read previous number pipe pid
+                        for(int i = 0; i < numPipe_list[idx]->numP_pid.size(); i++) {
+                            pid_list.push_back(numPipe_list[idx]->numP_pid[i]);
+                            proc_count++;
+                        }
                     }
                 }
             }
@@ -349,6 +351,7 @@ int main(void)  {
                         int *prev_fd = numPipe_list[r_num_pipe]->fd;                    // get the previous pipe from last command
                     
                         close(prev_fd[0]);
+                        numPipe_list.erase(numPipe_list.begin() + r_num_pipe);
                     }
 
                     // Pipe is own by parent and child, we have to close write end here
@@ -360,12 +363,9 @@ int main(void)  {
                     
                     // Retrieve all the dead process
                     if(to_numPipe)  {
-                        pipePid = pid_list[pid_list.size()-1];
+                        numPipe_list[w_num_pipe]->numP_pid.push_back(pid_list[pid_list.size()-1]);
                         pipe_list.pop_back();
                         proc_count--;
-                    }
-                    else    {
-                        pipePid = 0;
                     }
                     
                     if(proc_count >= max_proc || (idx >= cmd_list.size() && proc_count > 0))  {
